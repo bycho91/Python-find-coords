@@ -1,0 +1,92 @@
+import tempfile
+import os
+import re
+import time
+import xml.etree.cElementTree as ET
+
+class Element(object):
+    def __init__(self):
+        """#obtain system temp file storage directory and define matching digital mode"""
+        self.tempFile = tempfile.gettempdir()
+        self.pattern = re.compile(r'\d+')
+
+
+    def __uidump(self):
+        """get current Activity Control Tree"""
+        os.popen('adb shell uiautomator dump /data/local/tmp/uidump.xml')
+        os.popen(f'adb pull /data/local/tmp/uidump.xml {self.tempFile}')
+
+
+    def __element(self, attrib, name):
+        """Single element with same attribute, returns a single coordinate tuple"""
+        #GRAB UI DUMP INFO AND READ FILE
+        self.__uidump()
+
+        tree = ET.ElementTree(file = self.tempFile + "\\uidump.xml")
+        treeIter = tree.iter(tag="node")
+        for elem in treeIter:
+            if elem.attrib[attrib] == name:
+                bounds = elem.attrib["bounds"]
+                coord = self.pattern.findall(bounds)
+                xPoint = (int(coord[2]) - int(coord[0])) / 2.0 + int(coord[0])
+                yPoint = (int(coord[3]) - int(coord[1])) / 2.0 + int(coord[1])
+
+                return xPoint, yPoint
+
+    """Multiple elements of the same attributes, return a list of coordinate tuples"""
+    def __elements(selfself, attrib, name):
+        list = []
+        self.__uidump()
+        tree = ET.ElementTree(file=self.tempFile + "\\uidump.xml")
+        treeIter = tree.iter(tag="node")
+
+        for elem in treeIter:
+            if elem.attrib[attrib] == name:
+                bounds = elem.attrib["bounds"]
+                coord = self.pattern.findall(bounds)
+                xPoint = (int(coord[2]) - int(coord[0])) / 2.0 + int(coord[0])
+                yPoint = (int(coord[3]) - int(coord[1])) / 2.0 + int(coord[1])
+        return list
+
+    """BY ELEMENT NAME ie: findElementByName(u'Settings')    """
+    def findElementByName(self, name):
+        return self.__element("text", name)
+
+    def findElementsByName(self, name):
+        return self.__elements("text", name)
+
+    """BY CLASS ie: findElementByClass('android.widget.TextView')     """
+    def findElementByClass(self, className):
+        return self.__element('class', className)
+
+    def findElementsByClass(self, className):
+        return self.__elements('class', className)
+
+    """BY ID ie: findElementById(u'com.android.deskclock:id/imageview')      """
+    def findElementById(self, id):
+        return self.__element("resource-id", id)
+
+    def findElementsById(self, id):
+        return self.__elements("resource-id", id)
+
+
+class Event(object):
+    def __init__(self):
+        os.popen('adb wait-for-device')
+
+    def touch(self, dx, dy):
+        os.popen(f"adb shell input tap {str(dx)} {str(dy)}")
+        time.sleep(0.5)
+
+def test():
+    element = Element()
+    event = Event()
+
+    e1 = element.findElementByName(u"Screen lock type • Always On Display")
+
+    event.touch(e1[0], e1[1])
+
+    print(e1[0])
+    time.sleep(1)
+
+test()
