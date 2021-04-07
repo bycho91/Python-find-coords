@@ -1,0 +1,47 @@
+import os
+import time
+import re
+import xml.etree.cElementTree as ET
+import tempfile
+import asyncio
+
+# Create a temporary file location on PC
+tempFile = tempfile.gettempdir()
+
+pattern = re.compile(r'\d+')
+
+
+def tapTarget(targetText):
+    os.popen('adb wait-for-device')
+    # Run UI Automator on device and save to destination
+    os.popen('adb shell uiautomator dump /data/local/tmp/uidump.xml')
+
+    time.sleep(2)
+    # Pull the xml file into destination tempFile on PC
+    os.popen(f'adb pull /data/local/tmp/uidump.xml {tempFile}')
+
+    time.sleep(2)
+    # parse with element tree
+    tree = ET.ElementTree(file=tempFile + '\\uidump.xml')
+
+    treeIter = tree.iter(tag='node')
+
+    counter = 0
+    for elem in treeIter:
+        if targetText in elem.attrib["text"].lower():
+            bounds = elem.attrib["bounds"]
+            coords = pattern.findall(bounds)
+            global xPoint
+            global yPoint
+            xPoint = (int(coords[2]) - int(coords[0])) / 2.0 + int(coords[0])
+            yPoint = (int(coords[3]) - int(coords[1])) / 2.0 + int(coords[1])
+            counter += 1
+
+    if counter == 0:
+        print('Word not found')
+        quit()
+    else:
+        print(f'{xPoint}, {yPoint}')
+        os.popen(f'adb shell input tap {xPoint} {yPoint+100}')
+
+tapTarget('phone')
