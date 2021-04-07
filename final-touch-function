@@ -1,0 +1,70 @@
+import os
+import re
+import tempfile
+import time
+import xml.etree.cElementTree as ET
+from ppadb.client import Client
+
+adb = Client(host='127.0.0.1', port = 5037)
+devices = adb.devices()
+
+if len(devices) == 0:
+    print('No devices connected')
+    quit()
+
+## Global variables
+
+
+tempFile = tempfile.gettempdir()
+coordPattern = re.compile(r'\d+')
+
+
+device = devices[0]
+deviceId = device.shell('getprop ro.serialno').replace('\n', '')
+
+
+#arguments: targetText, deviceID, bool Exact, Attribute name
+def touch(target, id, exact = False, attributeName = 'text'):
+    global dx
+    global dy
+    #dump UI XML into uidump.xml file
+    os.popen(f'adb -s {id} wait-for-device')
+    os.popen(f'adb -s {id} shell uiautomator dump /data/local/tmp/uidump.xml')
+    time.sleep(2)
+
+    os.popen(f'adb -s {id} pull /data/local/tmp/uidump.xml {tempFile}')
+    time.sleep(2)
+
+    tree = ET.ElementTree(file = tempFile + '\\uidump.xml')
+    treeIter = tree.iter(tag = 'node')
+
+
+    counter = 0
+
+    #validate if exact match or not
+    if exact:
+        exactTarget = re.compile(fr'^{target}$')
+        for element in treeIter:
+            if re.match(exactTarget, element.attrib[attributeName]):
+                bounds = element.attrib['bounds']
+                coordinates = coordPattern.findall(bounds)
+                dx = (int(coordinates[2]) - int(coordinates[0])) / 2.0 + int(coordinates[0])
+                dy = (int(coordinates[3]) - int(coordinates[1])) / 2.0 + int(coordinates[1])
+                counter += 1
+    else:
+        for element in treeIter:
+            if target in element.attrib[attributeName].lower():
+                bounds = element.attrib['bounds']
+                coordinates = coordPattern.findall(bounds)
+                dx = (int(coordinates[2]) - int(coordinates[0])) / 2.0 + int(coordinates[0])
+                dy = (int(coordinates[3]) - int(coordinates[1])) / 2.0 + int(coordinates[1])
+                counter +=1
+
+
+    if counter == 1:
+        print(dx, dy)
+        os.popen(f'adb -s {id} shell input tap {dx} {dy}')
+    else:
+        print('ERROR: NOT FOUND')
+
+touch('free_trial_cta', deviceId, False, 'resource-id')
