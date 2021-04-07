@@ -11,7 +11,7 @@ tempFile = tempfile.gettempdir()
 pattern = re.compile(r'\d+')
 
 
-def tapTarget(targetText):
+def tapTarget(targetText, xadjust=0, yadjust=0):
     os.popen('adb wait-for-device')
     # Run UI Automator on device and save to destination
     os.popen('adb shell uiautomator dump /data/local/tmp/uidump.xml')
@@ -42,6 +42,7 @@ def tapTarget(targetText):
         quit()
     else:
         print(f'{xPoint}, {yPoint}')
-        os.popen(f'adb shell input tap {xPoint} {yPoint+100}')
+        os.popen(f'adb shell input tap {xPoint+xadjust} {yPoint+yadjust}')
 
 tapTarget('phone')
+
