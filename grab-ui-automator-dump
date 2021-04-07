@@ -1,0 +1,18 @@
+import os
+import re
+import tempfile
+import time
+import xml.etree.cElementTree as ET
+from ppadb.client import Client
+
+tempFile = tempfile.gettempdir()
+
+os.popen(f'adb wait-for-device')
+os.popen(f'adb shell uiautomator dump /data/local/tmp/uidump.xml')
+time.sleep(2)
+
+os.popen(f'adb pull /data/local/tmp/uidump.xml {tempFile}')
+time.sleep(2)
+
+print(tempFile)
+print('Done')
